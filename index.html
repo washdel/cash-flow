@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Personal Budget Tracker - Rupiah</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        h1, h2 {
+            color: #2c3e50;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            padding: 8px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .summary {
+            margin-top: 30px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        button {
+            padding: 8px 12px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        input, select {
+            padding: 6px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .delete-btn {
+            background-color: #f44336;
+        }
+        .delete-btn:hover {
+            background-color: #d32f2f;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Personal Budget Tracker - Rupiah</h1>
+        
+        <!-- Income Section -->
+        <h2>Income</h2>
+        <div>
+            <input type="text" id="incomeSource" placeholder="Source">
+            <input type="number" id="incomeAmount" placeholder="Amount (Rp)">
+            <input type="date" id="incomeDate">
+            <button onclick="addIncome()">Add Income</button>
+        </div>
+        <table id="incomeTable">
+            <tr>
+                <th>Date</th>
+                <th>Source</th>
+                <th>Amount (Rp)</th>
+                <th>Action</th>
+            </tr>
+        </table>
+        
+        <!-- Expense Section -->
+        <h2>Expenses</h2>
+        <div>
+            <input type="text" id="expenseDescription" placeholder="Description">
+            <select id="expenseCategory">
+                <option value="Food">Food</option>
+                <option value="Snacks">Snacks</option>
+                <option value="Transportation">Transportation</option>
+                <option value="Utilities">Utilities</option>
+                <option value="Other">Other</option>
+            </select>
+            <input type="number" id="expenseAmount" placeholder="Amount (Rp)">
+            <input type="date" id="expenseDate">
+            <button onclick="addExpense()">Add Expense</button>
+        </div>
+        <table id="expenseTable">
+            <tr>
+                <th>Date</th>
+                <th>Description</th>
+                <th>Category</th>
+                <th>Amount (Rp)</th>
+                <th>Action</th>
+            </tr>
+        </table>
+        
+        <!-- Summary Section -->
+        <div class="summary">
+            <h2>Summary</h2>
+            <p>Total Income: Rp <span id="totalIncome">0</span></p>
+            <p>Total Expenses: Rp <span id="totalExpenses">0</span></p>
+            <p>Balance: Rp <span id="balance">0</span></p>
+        </div>
+        
+        <button onclick="saveData()">Save Data</button>
+        <button onclick="loadData()">Load Data</button>
+        <button onclick="clearData()" class="delete-btn">Clear All Data</button>
+        
+        <!-- Export/Import Data -->
+        <h2>Export/Import Data</h2>
+        <button onclick="exportData()">Export Data</button>
+        <input type="file" id="importFile" accept=".json">
+        <button onclick="importData()">Import Data</button>
+    </div>
+
+    <script>
+        // Initialize
+        let incomes = [];
+        let expenses = [];
+        
+        // Load data on page load
+        window.onload = function() {
+            loadData();
+            
+            // Set default dates to today
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('incomeDate').value = today;
+            document.getElementById('expenseDate').value = today;
+        };
+        
+        // Add income
+        function addIncome() {
+            const source = document.getElementById('incomeSource').value;
+            const amount = parseFloat(document.getElementById('incomeAmount').value);
+            const date = document.getElementById('incomeDate').value;
+            
+            if (source && amount && date) {
+                incomes.push({
+                    date: date,
+                    source: source,
+                    amount: amount
+                });
+                
+                updateIncomeTable();
+                updateSummary();
+                
+                // Clear inputs
+                document.getElementById('incomeSource').value = '';
+                document.getElementById('incomeAmount').value = '';
+            } else {
+                alert('Please fill in all fields');
+            }
+        }
+        
+        // Add expense
+        function addExpense() {
+            const description = document.getElementById('expenseDescription').value;
+            const category = document.getElementById('expenseCategory').value;
+            const amount = parseFloat(document.getElementById('expenseAmount').value);
+            const date = document.getElementById('expenseDate').value;
+            
+            if (description && amount && date) {
+                expenses.push({
+                    date: date,
+                    description: description,
+                    category: category,
+                    amount: amount
+                });
+                
+                updateExpenseTable();
+                updateSummary();
+                
+                // Clear inputs
+                document.getElementById('expenseDescription').value = '';
+                document.getElementById('expenseAmount').value = '';
+            } else {
+                alert('Please fill in all fields');
+            }
+        }
+        
+        // Update income table
+        function updateIncomeTable() {
+            const table = document.getElementById('incomeTable');
+            
+            // Remove all rows except header
+            while (table.rows.length > 1) {
+                table.deleteRow(1);
+            }
+            
+            // Sort incomes by date (most recent first)
+            incomes.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            // Add rows for each income
+            incomes.forEach((income, index) => {
+                const row = table.insertRow();
+                row.insertCell(0).textContent = formatDate(income.date);
+                row.insertCell(1).textContent = income.source;
+                row.insertCell(2).textContent = formatRupiah(income.amount);
+                
+                const actionCell = row.insertCell(3);
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Delete';
+                deleteButton.className = 'delete-btn';
+                deleteButton.onclick = function() {
+                    incomes.splice(index, 1);
+                    updateIncomeTable();
+                    updateSummary();
+                };
+                actionCell.appendChild(deleteButton);
+            });
+        }
+        
+        // Update expense table
+        function updateExpenseTable() {
+            const table = document.getElementById('expenseTable');
+            
+            // Remove all rows except header
+            while (table.rows.length > 1) {
+                table.deleteRow(1);
+            }
+            
+            // Sort expenses by date (most recent first)
+            expenses.sort((a, b) => new Date(b.date) - new Date(a.date));
+            
+            // Add rows for each expense
+            expenses.forEach((expense, index) => {
+                const row = table.insertRow();
+                row.insertCell(0).textContent = formatDate(expense.date);
+                row.insertCell(1).textContent = expense.description;
+                row.insertCell(2).textContent = expense.category;
+                row.insertCell(3).textContent = formatRupiah(expense.amount);
+                
+                const actionCell = row.insertCell(4);
+                const deleteButton = document.createElement('button');
+                deleteButton.textContent = 'Delete';
+                deleteButton.className = 'delete-btn';
+                deleteButton.onclick = function() {
+                    expenses.splice(index, 1);
+                    updateExpenseTable();
+                    updateSummary();
+                };
+                actionCell.appendChild(deleteButton);
+            });
+        }
+        
+        // Format number to Rupiah
+        function formatRupiah(number) {
+            return new Intl.NumberFormat('id-ID').format(number);
+        }
+        
+        // Update summary
+        function updateSummary() {
+            const totalIncome = incomes.reduce((sum, income) => sum + income.amount, 0);
+            const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+            const balance = totalIncome - totalExpenses;
+            
+            document.getElementById('totalIncome').textContent = formatRupiah(totalIncome);
+            document.getElementById('totalExpenses').textContent = formatRupiah(totalExpenses);
+            document.getElementById('balance').textContent = formatRupiah(balance);
+            
+            // Change balance color based on value
+            const balanceElement = document.getElementById('balance');
+            if (balance < 0) {
+                balanceElement.style.color = 'red';
+            } else {
+                balanceElement.style.color = 'green';
+            }
+            
+            // Save data automatically
+            saveData();
+        }
+        
+        // Save data to local storage
+        function saveData() {
+            localStorage.setItem('budgetIncomes', JSON.stringify(incomes));
+            localStorage.setItem('budgetExpenses', JSON.stringify(expenses));
+        }
+        
+        // Load data from local storage
+        function loadData() {
+            const savedIncomes = localStorage.getItem('budgetIncomes');
+            const savedExpenses = localStorage.getItem('budgetExpenses');
+            
+            if (savedIncomes) {
+                incomes = JSON.parse(savedIncomes);
+                updateIncomeTable();
+            }
+            
+            if (savedExpenses) {
+                expenses = JSON.parse(savedExpenses);
+                updateExpenseTable();
+            }
+            
+            updateSummary();
+        }
+        
+        // Clear all data
+        function clearData() {
+            if (confirm('Are you sure you want to clear all data? This cannot be undone.')) {
+                incomes = [];
+                expenses = [];
+                localStorage.removeItem('budgetIncomes');
+                localStorage.removeItem('budgetExpenses');
+                updateIncomeTable();
+                updateExpenseTable();
+                updateSummary();
+                alert('All data cleared');
+            }
+        }
+        
+        // Format date to be more readable
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString();
+        }
+        
+        // Export data to JSON file
+        function exportData() {
+            const data = {
+                incomes: incomes,
+                expenses: expenses
+            };
+            
+            const dataStr = JSON.stringify(data);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = 'budget-data.json';
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+        
+        // Import data from JSON file
+        function importData() {
+            const fileInput = document.getElementById('importFile');
+            const file = fileInput.files[0];
+            
+            if (file) {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        
+                        if (data.incomes && data.expenses) {
+                            incomes = data.incomes;
+                            expenses = data.expenses;
+                            
+                            updateIncomeTable();
+                            updateExpenseTable();
+                            updateSummary();
+                            
+                            alert('Data imported successfully!');
+                        } else {
+                            alert('Invalid data format');
+                        }
+                    } catch (error) {
+                        alert('Error importing data: ' + error.message);
+                    }
+                };
+                
+                reader.readAsText(file);
+            } else {
+                alert('Please select a file to import');
+            }
+        }
+    </script>
+</body>
+</html>
